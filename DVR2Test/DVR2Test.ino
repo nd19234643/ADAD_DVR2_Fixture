@@ -40,7 +40,7 @@ void loop()
   if (buzzerSwitchStatus == HIGH && startSwitchStatus == LOW) // buzzer off, start on
   {
     /***** Send GPS to DVR *****/
-    sendGPSData(); // 1s
+    sendGPSData(); // 1s, 2s
 
     /***** Receive RX data from UART1 *****/
     receiveWarning(); // 10 ms
@@ -139,23 +139,35 @@ void sendGPSData()
 {
   // Send GPS Data (ones per second)
   gpsCount++;
-  if (gpsCount >= 100) // 100 * DELAY_TIME = 1000 ms = 1 s
+  if (gpsCount == 100) // 100 * DELAY_TIME = 1000 ms = 1 s
   {
-    // GPS TX Data
     Serial.println("Send GPS Data:");
     Serial.println("----------------------------------------------------------------------");
-    Serial.println("$GPRMC,160530.00,A,2404.04359,N,12025.99974,E,44.444,,150617,,,A*72");
-    Serial1.println("$GPRMC,160530.00,A,2404.04359,N,12025.99974,E,44.444,,150617,,,A*72");
-  
-    Serial.println("$GPGGA,160530.00,2404.04359,N,12025.99974,E,1,06,2.28,-13.3,M,16.1,M,,*4E");
-    Serial1.println("$GPGGA,160530.00,2404.04359,N,12025.99974,E,1,06,2.28,-13.3,M,16.1,M,,*4E");
+    Serial.print("$GPGGA,160530.00,2404.04359,N,12025.99974,E,1,06,2.28,-13.3,M,16.1,M,,*4E\r\n");
+    Serial1.print("$GPGGA,160530.00,2404.04359,N,12025.99974,E,1,06,2.28,-13.3,M,16.1,M,,*4E\r\n");
     Serial.println("----------------------------------------------------------------------");
 
     // GPS LED
     digitalWrite(GPS_TX_LED_OUTPIN, HIGH);
-    gpsCount = 0;  
   } 
-  else if (gpsCount >= 25) // 25 * DELAY_TIME = 250 ms = 0.25 s
+  else if (gpsCount >= 200) // 200 * DELAY_TIME = 2000 ms = 2s
+  {
+    Serial.println("Send GPS Data:");
+    Serial.println("----------------------------------------------------------------------");
+    Serial.print("$GPRMC,160530.00,A,2404.04359,N,12025.99974,E,44.444,199.52,150617,,,A*72\r\n");
+    Serial1.print("$GPRMC,160530.00,A,2404.04359,N,12025.99974,E,44.444,199.52,150617,,,A*72\r\n");
+    Serial.println("----------------------------------------------------------------------");
+
+    // GPS LED
+    digitalWrite(GPS_TX_LED_OUTPIN, HIGH);
+    gpsCount = 0;
+  }
+  else if (gpsCount == 125) // 125 * DELAY_TIME = 1250 ms = 1.25 s
+  {
+    // GPS LED
+    digitalWrite(GPS_TX_LED_OUTPIN, LOW);
+  }
+  else if (gpsCount == 25) // 25 * DELAY_TIME = 250 ms = 0.25 s
   {
     // GPS LED
     digitalWrite(GPS_TX_LED_OUTPIN, LOW);
