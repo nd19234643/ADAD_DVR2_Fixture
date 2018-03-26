@@ -30,9 +30,11 @@ char warningMessage_1[7] = {'$', 'M', 'W', 'L', 'D', 'T', ','};   // $MWLDT,
 char warningMessage_2[7] = {'$', 'M', 'W', 'F', 'C', 'W', ','};   // $MWFCW,
 char warningMessage_3[5] = {'A', 'T', '$', 'P', 'D'};             // AT$PD=21;LDW:1<0x0D><0x0A>
 
-unsigned char Period[3] = {0, 0, 0};
-unsigned char Pos[2] = {0, 0};
-unsigned char Neg[2] = {0, 0};
+unsigned char tempPositiveVal = 0;
+unsigned char tempNegativeVal = 0;
+unsigned char positiveVal = 0;
+unsigned char negativeVal = 0;
+
 
 /*
 $GPGGA,121252.000,3937.3032,N,11611.6046,E,1,05,2.0,45.9,M,-5.7,M,,0000*77 
@@ -175,9 +177,10 @@ void checkSwitchStatus()
     buzzerCount = 0;
 
     // Other reset
-    Period[0] = 0, Period[1] = 0, Period[2] = 0;
-    Pos[0] = 0, Pos[1] = 0;
-    Neg[0] = 0, Neg[1] = 0;
+    tempPositiveVal = 0;
+    tempNegativeVal = 0;
+    positiveVal = 0;
+    negativeVal = 0;
 
     // record new value
     buzzerSwitchStatus = newBuzzerSwitchStatus;
@@ -324,73 +327,66 @@ void receiveWarning()
 
 void checkFrequencyRange(float lowValue, float highValue, int sensorVal)
 {
+  // 67 count ~ 167 count
   float lowerBound = ((1 / highValue) * 1000 / DELAY_TIME);
   float upperBound = ((1/ lowValue) * 1000 / DELAY_TIME);
 
   // Count
   if (sensorVal == LOW)
   {
-    Neg[0] = Neg[0] + 1;
-    if (Pos[0] > 0)
-      Pos[1] = 1;     
+    tempNegativeVal += 1;
+    
+    if (tempPositiveVal > 0)
+    {
+      positiveVal = tempPositiveVal;
+      tempPositiveVal = 0;
+    }
   }
-  else // HIGH
+  else
   {
-    Pos[0] = Pos[0] + 1;
-    if (Neg[0] > 0)
-      Neg[1] = 1;
+    tempPositiveVal += 1;
+    
+    if (tempNegativeVal > 0) 
+    {
+      negativeVal = tempNegativeVal;
+      tempNegativeVal = 0;
+    }
   }
 
   // Clear data
-  if (Pos[0] > upperBound)
+  if (tempNegativeVal > upperBound) // > 167 count
   {
-    Pos[0]= 0;
-    Period[0]= 0; 
+    tempNegativeVal = 0;
+    negativeVal = 0;
   }
-  if (Neg[0] > upperBound)
+  if (tempPositiveVal > upperBound) // > 167 count
   {
-    Neg[0]= 0;
-    Period[1]= 0; 
-  }
-
-  // Record count information for HIGH
-  if (Pos[1] == 1)
-  {
-//    DPrint('%');
-//    DPrintln(Pos[0], DEC);
-    Period[0] = Pos[0]; 
-    Pos[0] = 0;
-    Pos[1] = 0; 
-  }
-
-  // Record count information for LOW
-  if (Neg[1] == 1)
-  {
-//    DPrint('%');
-//    DPrintln(Neg[0], DEC);
-    Period[1] = Neg[0];
-    Neg[0] = 0;
-    Neg[1] = 0;
+    tempPositiveVal = 0;
+    positiveVal = 0;
   }
 
   // Check frequency range
   checkFrequencyCount++;
-  if (checkFrequencyCount >= 10) // 100 ms
+  if (checkFrequencyCount >= 10) // 100 ms 檢查一次
   {
-    Period[2] = Period[0] + Period[1];
+    unsigned char sum = negativeVal + positiveVal;
+    DPrint("negativeVal = ");
+    DPrintln(negativeVal);
+    DPrint("positiveVal = ");
+    DPrintln(positiveVal);
     
-    if ((Period[2] >= lowerBound) && (Period[2] <= upperBound))
+    if ((sum >= lowerBound) && (sum <= upperBound))
     {
       DPrintln("Success: Get direction light"); // %0
       DPrint("Count = ");
-      DPrintln(Period[2], DEC);
+      DPrintln(sum, DEC);
       digitalWrite(DIRECTION_LIGHT_LED_OUTPIN, HIGH);
     }
     else
     {
       DPrintln("Failed: Get direction light"); // %1
       DPrint("Count = ");
-      DPrintln(Period[2], DEC);
+      DPrintln(sum, DEC);
       digitalWrite(DIRECTION_LIGHT_LED_OUTPIN, LOW);
     }
 
